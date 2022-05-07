@@ -39,6 +39,7 @@ REPORTER_NAMES: Final = [
     "html",
     "txt",
     "lineprecision",
+    "sarif-json",
 ]
 
 # Threshold after which we sometimes filter out most errors to avoid very

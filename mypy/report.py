@@ -16,6 +16,7 @@ import typing
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast, Iterator
 from typing_extensions import Final, TypeAlias as _TypeAlias
 
+from mypy.errors import Errors, ErrorInfo
 from mypy.nodes import MypyFile, Expression, FuncDef
 from mypy import stats
 from mypy.options import Options
@@ -84,9 +85,9 @@ class Reports:
         for reporter in self.reporters:
             reporter.on_file(tree, modules, type_map, options)
 
-    def finish(self) -> None:
+    def finish(self, errors: Errors) -> None:
         for reporter in self.reporters:
-            reporter.on_finish()
+            reporter.on_finish(errors)
 
 
 class AbstractReporter(metaclass=ABCMeta):
@@ -104,7 +105,7 @@ class AbstractReporter(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         pass
 
 
@@ -174,7 +175,7 @@ class LineCountReporter(AbstractReporter):
         self.counts[tree._fullname] = (imputed_annotated_lines, physical_lines,
                                        annotated_funcs, total_funcs)
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         counts: List[Tuple[Tuple[int, int, int, int], str]] = sorted(
             ((c, p) for p, c in self.counts.items()), reverse=True
         )
@@ -187,6 +188,75 @@ class LineCountReporter(AbstractReporter):
 
 
 register_reporter('linecount', LineCountReporter)
+
+
+class SarifJsonReporter(AbstractReporter):
+    """Report errors, warnings and notes in SARIF json format."""
+
+    def on_file(self,
+                tree: MypyFile,
+                modules: Dict[str, MypyFile],
+                type_map: Dict[Expression, Type],
+                options: Options) -> None:
+        pass
+
+    @staticmethod
+    def _error_info_to_sarif_result(error_info: ErrorInfo) -> Any:
+
+        assert error_info.severity in ["error", "warning", "note"]
+
+        return {
+          "ruleId": error_info.code.code,
+          "level": error_info.severity,
+          "message": {
+            "text": error_info.message
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": error_info.file
+                },
+                "region": {
+                  "startLine": error_info.line,
+                  "startColumn": error_info.column
+                }
+              }
+            }
+          ]
+        }
+
+    def _errors_to_sarif_results(self, errors: Errors) -> List[Dict[str, Any]]:
+        results = []
+        for _, error_infos in errors.error_info_map.items():
+            for error_info in error_infos:
+                results.append(self._error_info_to_sarif_result(error_info))
+        return results
+
+    def on_finish(self, errors: Errors) -> None:
+
+        results = self._errors_to_sarif_results(errors)
+
+        output = {
+            "version": "2.1.0",
+            "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "mypy",
+                            "version": __version__
+                        }
+                    },
+                    "results": results
+                }
+            ]
+        }
+        with open(os.path.join(self.output_dir, 'sarif.json'), 'w') as f:
+            json.dump(output, f, indent=2)
+
+
+register_reporter('sarif-json', SarifJsonReporter)
 
 
 class AnyExpressionsReporter(AbstractReporter):
@@ -217,7 +287,7 @@ class AnyExpressionsReporter(AbstractReporter):
         if num_total > 0:
             self.counts[tree.fullname] = (num_any, num_total)
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         self._report_any_exprs()
         self._report_types_of_anys()
 
@@ -411,7 +481,7 @@ class LineCoverageReporter(AbstractReporter):
 
         self.lines_covered[os.path.abspath(tree.path)] = covered_lines
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         with open(os.path.join(self.output_dir, 'coverage.json'), 'w') as f:
             json.dump({'lines': self.lines_covered}, f)
 
@@ -511,7 +581,7 @@ class MemoryXmlReporter(AbstractReporter):
         else:
             return "No Anys on this line!"
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         self.last_xml = None
         # index_path = os.path.join(self.output_dir, 'index.xml')
         output_files = sorted(self.files, key=lambda x: x.module)
@@ -649,7 +719,7 @@ class CoberturaXmlReporter(AbstractReporter):
                 package.covered_lines += class_lines_covered
             current_package.classes[class_name] = class_element
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         self.root.attrib['line-rate'] = get_line_rate(self.root_package.covered_lines,
                                                       self.root_package.total_lines)
         self.root.attrib['branch-rate'] = '0'
@@ -701,7 +771,7 @@ class XmlReporter(AbstractXmlReporter):
         stats.ensure_dir_exists(os.path.dirname(out_path))
         last_xml.write(out_path, encoding='utf-8')
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         last_xml = self.memory_xml.last_xml
         assert last_xml is not None
         out_path = os.path.join(self.output_dir, 'index.xml')
@@ -746,7 +816,7 @@ class XsltHtmlReporter(AbstractXmlReporter):
         with open(out_path, 'wb') as out_file:
             out_file.write(transformed_html)
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         last_xml = self.memory_xml.last_xml
         assert last_xml is not None
         out_path = os.path.join(self.output_dir, 'index.html')
@@ -779,7 +849,7 @@ class XsltTxtReporter(AbstractXmlReporter):
                 options: Options) -> None:
         pass
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         last_xml = self.memory_xml.last_xml
         assert last_xml is not None
         out_path = os.path.join(self.output_dir, 'index.txt')
@@ -842,7 +912,7 @@ class LinePrecisionReporter(AbstractReporter):
 
         self.files.append(file_info)
 
-    def on_finish(self) -> None:
+    def on_finish(self, errors: Errors) -> None:
         if not self.files:
             # Nothing to do.
             return

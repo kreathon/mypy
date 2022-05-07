@@ -480,7 +480,7 @@ namespace_packages = True
 <link rel="stylesheet" type="text/css" href="../../../mypy-html.css">
 </head>
 <body>
-<h2>folder.subfolder.something</h2>           
+<h2>folder.subfolder.something</h2>
 <table>
 <caption>folder/subfolder/something.py</caption>
 <tbody><tr>
@@ -494,3 +494,33 @@ namespace_packages = True
 </table>
 </body>
 </html>
+
+[case testSarifJsonReport]
+# cmd: mypy --sarif-json-report report error.py no-error.py
+
+[file error.py]
+async def some_function() -> None:
+    pass
+
+[file no-error.py]
+from typing import Any
+
+async def some_function() -> Any:
+    pass
+
+[outfile report/sarif.json]
+{
+  "version": "2.1.0",
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "mypy",
+          "version": "$VERSION"
+        }
+      },
+      "results": []
+    }
+  ]
+}

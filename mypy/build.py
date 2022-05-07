@@ -271,7 +271,7 @@ def _build(sources: List[BuildSource],
         manager.dump_stats()
         if reports is not None:
             # Finish the HTML or XML reports even if CompileError was raised.
-            reports.finish()
+            reports.finish(manager.errors)
         if not cache_dir_existed and os.path.isdir(options.cache_dir):
             add_catch_all_gitignore(options.cache_dir)
             exclude_from_backups(options.cache_dir)

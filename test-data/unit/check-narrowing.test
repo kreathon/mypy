@@ -1445,6 +1445,13 @@ else:
     reveal_type(c)  # N: Revealed type is "__main__.C"
 reveal_type(c)  # N: Revealed type is "__main__.C"
 
+c0: C
+if isinstance(c0, (tp, D)):
+    reveal_type(c0)  # N: Revealed type is "Union[Any, __main__.D]"
+else:
+    reveal_type(c0)  # N: Revealed type is "__main__.C"
+reveal_type(c0)  # N: Revealed type is "__main__.C"
+
 c1: C
 if isinstance(c1, tp) and isinstance(c1, D):
     reveal_type(c1)  # N: Revealed type is "Any"

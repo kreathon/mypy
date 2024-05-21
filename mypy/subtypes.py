@@ -1941,6 +1941,9 @@ def covers_type(item: Type, supertype: Type) -> bool:
     item = get_proper_type(item)
     supertype = get_proper_type(supertype)
 
+    if isinstance(item, UnionType):
+        return False
+
     if isinstance(item, AnyType) or (isinstance(item, Instance) and item.type.fallback_to_any):
         return False
 

@@ -64,7 +64,7 @@ from mypy.types import (
     is_named_instance,
     split_with_prefix_and_suffix,
 )
-from mypy.types_utils import flatten_types
+from mypy.types_utils import flatten_types, is_union_with_any
 from mypy.typestate import SubtypeKind, type_state
 from mypy.typevars import fill_typevars_with_any
 
@@ -1944,15 +1944,14 @@ def covers_type(item: Type, supertype: Type) -> bool:
     if isinstance(item, UnionType):
         return False
 
-    if isinstance(item, AnyType) or isinstance(supertype, AnyType):
+    if is_union_with_any(item) or is_union_with_any(supertype):
         return False
 
     if isinstance(item, Instance) and item.type.fallback_to_any:
-        return is_equivalent(item, supertype)
+        return is_same_type(item, supertype)
 
     if isinstance(supertype, Instance) and supertype.type.fallback_to_any:
-        return is_equivalent(item, supertype)
-
+        return is_same_type(item, supertype)
 
     if is_subtype(item, supertype, ignore_promotions=True):
         return True

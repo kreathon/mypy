@@ -509,6 +509,21 @@ else:
     j[0] = j[0] + 1
 [builtins fixtures/isinstancelist.pyi]
 
+[case testIsInstanceSubClassAny]
+from typing import Any, Union
+
+X: Any
+
+class A(X): pass
+
+a: Union[A, str]
+if isinstance(a, A):
+    reveal_type(a)  # N: Revealed type is "__main__.A"
+else:
+    reveal_type(a)  # N: Revealed type is "Union[__main__.A, builtins.str]"
+reveal_type(a)  # N: Revealed type is "Union[__main__.A, builtins.str]"
+[builtins fixtures/isinstance.pyi]
+
 [case testIsInstanceSubClassMember]
 from typing import Union
 

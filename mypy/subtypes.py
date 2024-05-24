@@ -64,7 +64,7 @@ from mypy.types import (
     is_named_instance,
     split_with_prefix_and_suffix,
 )
-from mypy.types_utils import flatten_types
+from mypy.types_utils import flatten_types, is_union_with_any
 from mypy.typestate import SubtypeKind, type_state
 from mypy.typevars import fill_typevars_with_any
 
@@ -1927,7 +1927,7 @@ def restrict_subtype_away(t: Type, s: Type) -> Type:
             new_items = [
                 restrict_subtype_away(item, s)
                 for item in p_t.relevant_items()
-                if not covers_type(item, s)
+                if isinstance(item, UnionType) or not covers_type(item, s)
             ]
         return UnionType.make_union(new_items)
     elif covers_type(t, s):
@@ -1941,20 +1941,17 @@ def covers_type(item: Type, supertype: Type) -> bool:
     item = get_proper_type(item)
     supertype = get_proper_type(supertype)
 
-    if isinstance(item, UnionType):
+    # Handle possible Any types that should not be covered:
+    if isinstance(item, AnyType) or is_union_with_any(supertype):
         return False
-
-    if isinstance(item, AnyType) or isinstance(supertype, AnyType):
-        return False
-
-    if isinstance(item, Instance) and item.type.fallback_to_any:
-        return is_equivalent(item, supertype)
-
-    if isinstance(supertype, Instance) and supertype.type.fallback_to_any:
-        return is_equivalent(item, supertype)
+    if (isinstance(item, Instance) and item.type.fallback_to_any) or (
+        isinstance(supertype, Instance) and supertype.type.fallback_to_any
+    ):
+        return is_same_type(item, supertype)
 
     if is_subtype(item, supertype, ignore_promotions=True):
         return True
+
     if isinstance(supertype, Instance):
         if supertype.type.is_protocol:
             # TODO: Implement more robust support for runtime isinstance() checks, see issue #3827.

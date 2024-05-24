@@ -1948,6 +1948,7 @@ def covers_type(item: Type, supertype: Type) -> bool:
     """Returns if item is covered by supertype.
 
     Assumes that item is not a Union type.
+
     Any types (or fallbacks to any) should never cover or be covered.
     Examples:
 
@@ -1960,26 +1961,21 @@ def covers_type(item: Type, supertype: Type) -> bool:
     item = get_proper_type(item)
     supertype = get_proper_type(supertype)
 
-    if isinstance(item, UnionType):
-        return False
+    assert not isinstance(item, UnionType)
 
     # Handle possible Any types that should not be covered:
-    if isinstance(item, AnyType):
+    if isinstance(item, AnyType) or isinstance(supertype, AnyType):
         return False
-    if isinstance(supertype, AnyType):
-        return False
-    if (isinstance(item, Instance) and item.type.fallback_to_any) or (
+    elif (isinstance(item, Instance) and item.type.fallback_to_any) or (
         isinstance(supertype, Instance) and supertype.type.fallback_to_any
     ):
         return is_same_type(item, supertype)
 
     if isinstance(supertype, UnionType):
+        # Cannot be handled by "is_subtype" check, because Any types
+        # need to be ignored (handled by recursion):
         return any(covers_type(item, t) for t in supertype.items)
-
-    if is_subtype(item, supertype, ignore_promotions=True):
-        return True
-
-    if isinstance(supertype, Instance):
+    elif isinstance(supertype, Instance):
         if supertype.type.is_protocol:
             # TODO: Implement more robust support for runtime isinstance() checks, see issue #3827.
             if is_proper_subtype(item, supertype, ignore_promotions=True):
@@ -1995,8 +1991,8 @@ def covers_type(item: Type, supertype: Type) -> bool:
             # "int" covers all native int types
             if item.type.fullname in MYPYC_NATIVE_INT_NAMES:
                 return True
-    # TODO: Add more special cases.
-    return False
+
+    return is_subtype(item, supertype, ignore_promotions=True)
 
 
 def is_more_precise(left: Type, right: Type, *, ignore_promotions: bool = False) -> bool:

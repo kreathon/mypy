@@ -10,6 +10,9 @@ import mypy.typeops
 from mypy.erasetype import erase_type
 from mypy.expandtype import expand_self_type, expand_type_by_instance
 from mypy.maptype import map_instance_to_supertype
+from mypy.typeops import (
+    make_simplified_union,
+)
 
 # Circular import; done in the function instead.
 # import mypy.solve
@@ -64,7 +67,7 @@ from mypy.types import (
     is_named_instance,
     split_with_prefix_and_suffix,
 )
-from mypy.types_utils import flatten_types, is_union_with_any
+from mypy.types_utils import flatten_types
 from mypy.typestate import SubtypeKind, type_state
 from mypy.typevars import fill_typevars_with_any
 
@@ -1927,7 +1930,7 @@ def restrict_subtype_away(t: Type, s: Type) -> Type:
             new_items = [
                 restrict_subtype_away(item, s)
                 for item in p_t.relevant_items()
-                if isinstance(item, UnionType) or not covers_type(item, s)
+                if not covers_type(item, s)
             ]
         return UnionType.make_union(new_items)
     elif covers_type(t, s):
@@ -1941,13 +1944,21 @@ def covers_type(item: Type, supertype: Type) -> bool:
     item = get_proper_type(item)
     supertype = get_proper_type(supertype)
 
+    if isinstance(item, UnionType):
+        return False
+
     # Handle possible Any types that should not be covered:
-    if isinstance(item, AnyType) or is_union_with_any(supertype):
+    if isinstance(item, AnyType):
+        return False
+    if isinstance(supertype, AnyType):
         return False
     if (isinstance(item, Instance) and item.type.fallback_to_any) or (
         isinstance(supertype, Instance) and supertype.type.fallback_to_any
     ):
         return is_same_type(item, supertype)
+
+    if isinstance(supertype, UnionType):
+        return any(covers_type(item, t) for t in supertype.items)
 
     if is_subtype(item, supertype, ignore_promotions=True):
         return True

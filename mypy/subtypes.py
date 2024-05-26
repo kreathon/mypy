@@ -1950,10 +1950,10 @@ def covers_type(item: Type, supertype: Type) -> bool:
     # Handle possible Any types that should not be covered:
     if isinstance(item, AnyType) or isinstance(supertype, AnyType):
         return False
-    elif (isinstance(item, Instance) and item.type.fallback_to_any) or (
-        isinstance(supertype, Instance) and supertype.type.fallback_to_any
-    ):
-        return is_same_type(item, supertype)
+    #elif (isinstance(item, Instance) and item.type.fallback_to_any) or (
+    #    isinstance(supertype, Instance) and supertype.type.fallback_to_any
+    #):
+    #    return is_same_type(item, supertype)
 
     if isinstance(supertype, UnionType):
         # Special case that cannot be handled by is_subtype, because it would

@@ -184,7 +184,7 @@ class A: ...
 def is_class(x: object) -> TypeIs[Type[Any]]: ...
 def main(a: Union[A, Type[A]]) -> None:
     if is_class(a):
-        reveal_type(a)  # N: Revealed type is "Type[Any]"
+        reveal_type(a)  # N: Revealed type is "Type[__main__.A]"
     else:
         reveal_type(a)  # N: Revealed type is "__main__.A"
 [builtins fixtures/tuple.pyi]

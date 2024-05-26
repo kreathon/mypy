@@ -151,7 +151,7 @@ def narrow_declared_type(declared: Type, narrowed: Type) -> Type:
             [narrow_declared_type(declared, x) for x in narrowed.relevant_items()]
         )
     elif isinstance(narrowed, AnyType):
-        return original_narrowed
+        return original_declared
     elif isinstance(narrowed, TypeVarType) and is_subtype(narrowed.upper_bound, declared):
         return narrowed
     elif isinstance(declared, TypeType) and isinstance(narrowed, TypeType):

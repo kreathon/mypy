@@ -2149,7 +2149,7 @@ else:
     reveal_type(a)  # N: Revealed type is "Union[__main__.GoodParent, __main__.BadParent]"
 b: Union[int, BadParent]
 if isinstance(b, (X, GoodParent)):
-    reveal_type(b)  # N: Revealed type is "Union[Any, __main__.BadParent]"
+    reveal_type(b)  # N: Revealed type is "Union[builtins.int, __main__.BadParent]"
 else:
     reveal_type(b)  # N: Revealed type is "Union[builtins.int, __main__.BadParent]"
 [builtins fixtures/isinstance.pyi]

@@ -6222,17 +6222,22 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         )
 
 
-def has_any_type(t: Type, ignore_in_type_obj: bool = False) -> bool:
+def has_any_type(
+    t: Type, ignore_in_type_obj: bool = False, ignore_special_form: bool = True
+) -> bool:
     """Whether t contains an Any type"""
-    return t.accept(HasAnyType(ignore_in_type_obj))
+    return t.accept(HasAnyType(ignore_in_type_obj, ignore_special_form))
 
 
 class HasAnyType(types.BoolTypeQuery):
-    def __init__(self, ignore_in_type_obj: bool) -> None:
+    def __init__(self, ignore_in_type_obj: bool, ignore_special_form: bool) -> None:
         super().__init__(types.ANY_STRATEGY)
         self.ignore_in_type_obj = ignore_in_type_obj
+        self.ignore_special_form = ignore_special_form
 
     def visit_any(self, t: AnyType) -> bool:
+        if not self.ignore_special_form:
+            return True
         return t.type_of_any != TypeOfAny.special_form  # special forms are not real Any types
 
     def visit_callable_type(self, t: CallableType) -> bool:

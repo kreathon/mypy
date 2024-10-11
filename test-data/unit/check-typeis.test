@@ -178,6 +178,32 @@ def main(a: Union[A, Type[A]]) -> None:
         reveal_type(a)  # N: Revealed type is "__main__.A"
 [builtins fixtures/tuple.pyi]
 
+[case testTypeIsTypeVarTypeAny]
+from typing_extensions import TypeIs
+from typing import Any, Type, TypeVar
+class A: ...
+T = TypeVar("T", bound=Type[Any])
+def is_type_A(x: object) -> TypeIs[Type[A]]: ...
+def main(t: T) -> None:
+    if is_type_A(t):
+        reveal_type(t)  # N: Revealed type is "Type[__main__.A]"
+    else:
+        reveal_type(t)  # N: Revealed type is "T`-1"
+[builtins fixtures/tuple.pyi]
+
+[case testTypeIsTypeAliasTypeAny]
+from typing_extensions import TypeAlias, TypeIs
+from typing import Any, Type
+class A: ...
+T: TypeAlias = Type[Any]
+def is_type_A(x: object) -> TypeIs[Type[A]]: ...
+def main(t: T) -> None:
+    if is_type_A(t):
+        reveal_type(t)  # N: Revealed type is "Type[__main__.A]"
+    else:
+        reveal_type(t)  # N: Revealed type is "Type[Any]"
+[builtins fixtures/tuple.pyi]
+
 [case testTypeIsAwaitableAny]
 from typing_extensions import TypeIs
 from typing import Any, Awaitable, TypeVar, Union

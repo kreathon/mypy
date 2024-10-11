@@ -18,6 +18,7 @@ from mypy.maptype import map_instance_to_supertype
 
 # Circular import; done in the function instead.
 # import mypy.solve
+# import mypy.checkexpr
 from mypy.nodes import (
     ARG_STAR,
     ARG_STAR2,
@@ -1942,24 +1943,33 @@ def restrict_subtype_away(t: Type, s: Type) -> Type:
 def covers_type(item: Type, supertype: Type) -> bool:
     """Returns if item is covered by supertype.
 
-    Any types (or fallbacks to any) should never cover or be covered.
+    This function is used for type narrowing where Any types
+    (or fallbacks to Any) should never cover or be covered.
 
     Assumes that item is not a Union type.
 
     Examples:
         int            covered by int
         List[int]      covered by List[Any]
-        A              covered by Union[A, Any]
+        A              covered by Union[A, Any] (only because of "A")
         Any            NOT covered by int
         int            NOT covered by Any
+        type[Any]      NOT covered by type[DataclassInstance]
     """
+    import mypy.checkexpr
+
     item = get_proper_type(item)
     supertype = get_proper_type(supertype)
 
     assert not isinstance(item, UnionType)
 
+    if is_equivalent(item, supertype):
+        return True
+
     # Handle possible Any types that should not be covered:
-    if isinstance(item, AnyType) or isinstance(supertype, AnyType):
+    if mypy.checkexpr.has_any_type(item, ignore_special_form=False) or isinstance(
+        supertype, AnyType
+    ):
         return False
     elif (isinstance(item, Instance) and item.type.fallback_to_any) or (
         isinstance(supertype, Instance) and supertype.type.fallback_to_any
